@@ -1,9 +1,13 @@
+import streamlit as st
+from huggingface_hub import HfFolder
+HfFolder().save_token(st.secrets['etoken'])
+
+
 import numpy
 import trimesh
 import objaverse
 import openshape
 import misc_utils
-import streamlit as st
 import plotly.graph_objects as go
 
 
@@ -12,7 +16,7 @@ def load_openshape(name):
     return openshape.load_pc_encoder(name)
 
 
-f32 = numpy.flaot32
+f32 = numpy.float32
 model_b32 = openshape.load_pc_encoder('openshape-pointbert-vitb32-rgb')
 model_l14 = openshape.load_pc_encoder('openshape-pointbert-vitl14-rgb')
 model_g14 = openshape.load_pc_encoder('openshape-pointbert-vitg14-rgb')
@@ -68,46 +72,49 @@ def render_pc(ncols, col, pc):
     return cols
 
 
-tab_cls, tab_pc2img, tab_cap = st.tabs(["Classification", "Point Cloud to Image Generation", "Point Cloud Captioning"])
+try:
+    tab_cls, tab_pc2img, tab_cap = st.tabs(["Classification", "Point Cloud to Image Generation", "Point Cloud Captioning"])
 
-with tab_cls:
-    if st.button("Run Classification on LVIS Categories"):
-        pc = load_data()
-        col1, col2 = render_pc(2, 0, pc)
-        prog.progress(0.5, "Running Classification")
-        with col2:
-            pred = openshape.pred_lvis_sims(model_g14, pc)
-            for i, (cat, sim) in zip(range(5), pred.items()):
-                st.text(cat)
-                st.caption("Similarity %.4f" % sim)
-        prog.progress(1.0, "Idle")
+    with tab_cls:
+        if st.button("Run Classification on LVIS Categories"):
+            pc = load_data()
+            col1, col2 = render_pc(2, 0, pc)
+            prog.progress(0.5, "Running Classification")
+            with col2:
+                pred = openshape.pred_lvis_sims(model_g14, pc)
+                for i, (cat, sim) in zip(range(5), pred.items()):
+                    st.text(cat)
+                    st.caption("Similarity %.4f" % sim)
+            prog.progress(1.0, "Idle")
 
-with tab_pc2img:
-    prompt = st.text_input("Prompt")
-    noise_scale = st.slider('Variation Level', 0, 5)
-    cfg_scale = st.slider('Guidance Scale', 0.0, 30.0, 10.0)
-    steps = st.slider('Diffusion Steps', 2, 80, 10)
-    width = st.slider('Width', 128, 512, step=32)
-    height = st.slider('Height', 128, 512, step=32)
-    if st.button("Generate"):
-        pc = load_data()
-        col1, col2 = render_pc(2, 0, pc)
-        prog.progress(0.49, "Running Generation")
-        img = openshape.pc_to_image(
-            model_l14, pc, prompt, noise_scale, width, height, cfg_scale, steps,
-            lambda i, t, _: prog.progress(0.49 + i / (steps + 1) / 2, "Running Diffusion Step %d" % i)
-        )
-        with col2:
-            st.image(img)
-        prog.progress(1.0, "Idle")
+    with tab_pc2img:
+        prompt = st.text_input("Prompt")
+        noise_scale = st.slider('Variation Level', 0, 5)
+        cfg_scale = st.slider('Guidance Scale', 0.0, 30.0, 10.0)
+        steps = st.slider('Diffusion Steps', 2, 80, 10)
+        width = st.slider('Width', 128, 512, step=32)
+        height = st.slider('Height', 128, 512, step=32)
+        if st.button("Generate"):
+            pc = load_data()
+            col1, col2 = render_pc(2, 0, pc)
+            prog.progress(0.49, "Running Generation")
+            img = openshape.pc_to_image(
+                model_l14, pc, prompt, noise_scale, width, height, cfg_scale, steps,
+                lambda i, t, _: prog.progress(0.49 + i / (steps + 1) / 2, "Running Diffusion Step %d" % i)
+            )
+            with col2:
+                st.image(img)
+            prog.progress(1.0, "Idle")
 
-with tab_cap:
-    cond_scale = st.slider('Conditioning Scale', 0.0, 4.0, 1.0)
-    if st.button("Generate a Caption"):
-        pc = load_data()
-        col1, col2 = render_pc(2, 0, pc)
-        prog.progress(0.5, "Running Generation")
-        cap = openshape.pc_caption(model_b32, pc, cond_scale)
-        with col2:
-            st.text(cap)
-        prog.progress(1.0, "Idle")
+    with tab_cap:
+        cond_scale = st.slider('Conditioning Scale', 0.0, 4.0, 1.0)
+        if st.button("Generate a Caption"):
+            pc = load_data()
+            col1, col2 = render_pc(2, 0, pc)
+            prog.progress(0.5, "Running Generation")
+            cap = openshape.pc_caption(model_b32, pc, cond_scale)
+            with col2:
+                st.text(cap)
+            prog.progress(1.0, "Idle")
+except Exception as exc:
+    st.error(repr(exc))

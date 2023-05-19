@@ -40,7 +40,7 @@ model_list = {
 
 
 def load_pc_encoder(name):
-    s = torch.load(hf_hub_download("OpenShape/" + name, "model.pt"), map_location='cpu')
+    s = torch.load(hf_hub_download("OpenShape/" + name, "model.pt", token=True), map_location='cpu')
     model = model_list[name](s).eval()
     if torch.cuda.is_available():
         model.cuda()

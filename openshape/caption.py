@@ -157,7 +157,7 @@ tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 prefix_length = 10
 model = ClipCaptionModel(prefix_length)
 # print(model.gpt_embedding_size)
-model.load_state_dict(torch.load(hf_hub_download('OpenShape/clipcap-cc', 'conceptual_weights.pt'), map_location='cpu'))
+model.load_state_dict(torch.load(hf_hub_download('OpenShape/clipcap-cc', 'conceptual_weights.pt', token=True), map_location='cpu'))
 model.eval()
 if torch.cuda.is_available():
     model = model.cuda()
