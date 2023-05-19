@@ -9,3 +9,4 @@ transformers
 einops
 torch.redstone
 objaverse
+altair<5
