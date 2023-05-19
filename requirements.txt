@@ -12,3 +12,4 @@ objaverse
 altair<5
 trimesh
 matplotlib
+plotly
