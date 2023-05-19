@@ -13,7 +13,7 @@ def G14(s):
         PointPatchTransformer(512, 12, 8, 512*3, 256, 384, 0.2, 64, 6),
         nn.Linear(512, 1280)
     )
-    model.load_state_dict(module(s, 'module'))
+    model.load_state_dict(module(s['state_dict'], 'module'))
     return model
 
 
