@@ -76,7 +76,7 @@ try:
     with tab_cls:
         if st.button("Run Classification on LVIS Categories"):
             pc = load_data()
-            render_pc(2, 0, pc)
+            render_pc(pc)
             prog.progress(0.5, "Running Classification")
             pred = openshape.pred_lvis_sims(model_g14, pc)
             for i, (cat, sim) in zip(range(5), pred.items()):
@@ -93,7 +93,7 @@ try:
         height = st.slider('Height', 128, 512, step=32)
         if st.button("Generate"):
             pc = load_data()
-            render_pc(2, 0, pc)
+            render_pc(pc)
             prog.progress(0.49, "Running Generation")
             img = openshape.pc_to_image(
                 model_l14, pc, prompt, noise_scale, width, height, cfg_scale, steps,
@@ -106,7 +106,7 @@ try:
         cond_scale = st.slider('Conditioning Scale', 0.0, 4.0, 1.0)
         if st.button("Generate a Caption"):
             pc = load_data()
-            render_pc(2, 0, pc)
+            render_pc(pc)
             prog.progress(0.5, "Running Generation")
             cap = openshape.pc_caption(model_b32, pc, cond_scale)
             st.text(cap)
