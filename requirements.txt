@@ -1,7 +1,7 @@
 torch
 numpy
 dgl
-open_clip_torch
+# open_clip_torch
 diffusers
 accelerate
 datasets
@@ -10,3 +10,5 @@ einops
 torch.redstone
 objaverse
 altair<5
+trimesh
+matplotlib
