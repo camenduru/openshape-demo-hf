@@ -58,6 +58,7 @@ def load_data():
 
 
 def render_pc(ncols, col, pc):
+    pc = pc[:2048]
     cols = st.columns(ncols)
     with cols[col]:
         rgb = (pc[:, 3:] * 255).astype(numpy.uint8)
