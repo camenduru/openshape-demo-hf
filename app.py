@@ -39,9 +39,9 @@ def load_data():
         pc = misc_utils.model_to_pc(misc_utils.as_mesh(trimesh.load(model)))
     elif objaid:
         prog.progress(0.1, "Downloading Objaverse Object")
-        model = objaverse.load_objects([objaid])[objaid]
+        objamodel = objaverse.load_objects([objaid])[objaid]
         prog.progress(0.2, "Preparing Point Cloud")
-        pc = misc_utils.model_to_pc(misc_utils.as_mesh(trimesh.load(model)))
+        pc = misc_utils.model_to_pc(misc_utils.as_mesh(trimesh.load(objamodel)))
     else:
         raise ValueError("You have to supply 3D input!")
     prog.progress(0.25, "Preprocessing Point Cloud")
