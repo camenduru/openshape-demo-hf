@@ -3,6 +3,7 @@ import trimesh
 import trimesh.sample
 import trimesh.visual
 import trimesh.proximity
+import streamlit as st
 import matplotlib.pyplot as plotlib
 
 
@@ -42,16 +43,16 @@ def model_to_pc(mesh: trimesh.Trimesh, n_sample_points=10000):
     return numpy.concatenate([numpy.array(pcd, f32), numpy.array(rgba, f32)[:, :3]], axis=-1)
 
 
-def as_mesh(scene_or_mesh):
+def trimesh_to_pc(scene_or_mesh):
     if isinstance(scene_or_mesh, trimesh.Scene):
         meshes = [
-            trimesh.Trimesh(vertices=g.vertices, faces=g.faces)
+            model_to_pc(trimesh.Trimesh(vertices=g.vertices, faces=g.faces), 10000 // len(scene_or_mesh.geometry))
             for g in scene_or_mesh.geometry.values()
             if isinstance(g, trimesh.Trimesh)
         ]
         if not len(meshes):
             return None
-        return trimesh.util.concatenate(meshes)
+        return numpy.concatenate(meshes)
     else:
         assert isinstance(scene_or_mesh, trimesh.Trimesh)
-        return scene_or_mesh
+        return model_to_pc(scene_or_mesh, 10000)

@@ -36,12 +36,12 @@ def load_data():
     if npy is not None:
         pc: numpy.ndarray = numpy.load(npy)
     elif model is not None:
-        pc = misc_utils.model_to_pc(misc_utils.as_mesh(trimesh.load(model)))
+        pc = misc_utils.trimesh_to_pc(trimesh.load(model, model.name.split(".")[-1]))
     elif objaid:
         prog.progress(0.1, "Downloading Objaverse Object")
         objamodel = objaverse.load_objects([objaid])[objaid]
         prog.progress(0.2, "Preparing Point Cloud")
-        pc = misc_utils.model_to_pc(misc_utils.as_mesh(trimesh.load(objamodel)))
+        pc = misc_utils.trimesh_to_pc(trimesh.load(objamodel))
     else:
         raise ValueError("You have to supply 3D input!")
     prog.progress(0.25, "Preprocessing Point Cloud")
@@ -57,20 +57,17 @@ def load_data():
     return pc.astype(f32)
 
 
-def render_pc(ncols, col, pc):
+def render_pc(pc):
     pc = pc[:2048]
-    cols = st.columns(ncols)
-    with cols[col]:
-        rgb = (pc[:, 3:] * 255).astype(numpy.uint8)
-        g = go.Scatter3d(
-            x=pc[:, 0], y=pc[:, 1], z=pc[:, 2],
-            mode='markers',
-            marker=dict(size=2, color=[f'rgb({rgb[i, 0]}, {rgb[i, 1]}, {rgb[i, 2]})' for i in range(len(pc))]),
-        )
-        fig = go.Figure(data=[g])
-        st.plotly_chart(fig)
-        st.caption("Point Cloud Preview")
-    return cols
+    rgb = (pc[:, 3:] * 255).astype(numpy.uint8)
+    g = go.Scatter3d(
+        x=pc[:, 0], y=pc[:, 1], z=pc[:, 2],
+        mode='markers',
+        marker=dict(size=2, color=[f'rgb({rgb[i, 0]}, {rgb[i, 1]}, {rgb[i, 2]})' for i in range(len(pc))]),
+    )
+    fig = go.Figure(data=[g])
+    st.plotly_chart(fig)
+    # st.caption("Point Cloud Preview")
 
 
 try:
@@ -79,13 +76,12 @@ try:
     with tab_cls:
         if st.button("Run Classification on LVIS Categories"):
             pc = load_data()
-            col1, col2 = render_pc(2, 0, pc)
+            render_pc(2, 0, pc)
             prog.progress(0.5, "Running Classification")
-            with col2:
-                pred = openshape.pred_lvis_sims(model_g14, pc)
-                for i, (cat, sim) in zip(range(5), pred.items()):
-                    st.text(cat)
-                    st.caption("Similarity %.4f" % sim)
+            pred = openshape.pred_lvis_sims(model_g14, pc)
+            for i, (cat, sim) in zip(range(5), pred.items()):
+                st.text(cat)
+                st.caption("Similarity %.4f" % sim)
             prog.progress(1.0, "Idle")
 
     with tab_pc2img:
@@ -97,25 +93,23 @@ try:
         height = st.slider('Height', 128, 512, step=32)
         if st.button("Generate"):
             pc = load_data()
-            col1, col2 = render_pc(2, 0, pc)
+            render_pc(2, 0, pc)
             prog.progress(0.49, "Running Generation")
             img = openshape.pc_to_image(
                 model_l14, pc, prompt, noise_scale, width, height, cfg_scale, steps,
                 lambda i, t, _: prog.progress(0.49 + i / (steps + 1) / 2, "Running Diffusion Step %d" % i)
             )
-            with col2:
-                st.image(img)
+            st.image(img)
             prog.progress(1.0, "Idle")
 
     with tab_cap:
         cond_scale = st.slider('Conditioning Scale', 0.0, 4.0, 1.0)
         if st.button("Generate a Caption"):
             pc = load_data()
-            col1, col2 = render_pc(2, 0, pc)
+            render_pc(2, 0, pc)
             prog.progress(0.5, "Running Generation")
             cap = openshape.pc_caption(model_b32, pc, cond_scale)
-            with col2:
-                st.text(cap)
+            st.text(cap)
             prog.progress(1.0, "Idle")
 except Exception as exc:
     st.error(repr(exc))
