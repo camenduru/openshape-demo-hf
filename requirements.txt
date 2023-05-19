@@ -1,0 +1,11 @@
+torch
+numpy
+dgl
+open_clip_torch
+diffusers
+accelerate
+datasets
+transformers
+einops
+torch.redstone
+objaverse
