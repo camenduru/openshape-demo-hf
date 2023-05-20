@@ -76,7 +76,7 @@ def render_pc(pc):
 
 
 try:
-    tab_cls, tab_pc2img, tab_cap = st.tabs(["Classification", "Point Cloud to Image Generation", "Point Cloud Captioning"])
+    tab_cls, tab_cap = st.tabs(["Classification", "Point Cloud Captioning"])
 
     with tab_cls:
         if st.button("Run Classification on LVIS Categories"):
@@ -90,25 +90,6 @@ try:
                     st.caption("Similarity %.4f" % sim)
             prog.progress(1.0, "Idle")
 
-    with tab_pc2img:
-        prompt = st.text_input("Prompt")
-        noise_scale = st.slider('Variation Level', 0, 5)
-        cfg_scale = st.slider('Guidance Scale', 0.0, 30.0, 3.0)
-        steps = st.slider('Diffusion Steps', 8, 80, 10)
-        width = st.slider('Width', 480, 640, step=32)
-        height = st.slider('Height', 480, 640, step=32)
-        if st.button("Generate"):
-            pc = load_data()
-            col2 = render_pc(pc)
-            prog.progress(0.49, "Running Generation")
-            img = openshape.pc_to_image(
-                model_l14, pc, prompt, noise_scale, width, height, cfg_scale, steps,
-                lambda i, t, _: prog.progress(0.49 + i / (steps + 1) / 2, "Running Diffusion Step %d" % i)
-            )
-            with col2:
-                st.image(img)
-            prog.progress(1.0, "Idle")
-
     with tab_cap:
         cond_scale = st.slider('Conditioning Scale', 0.0, 4.0, 2.0)
         if st.button("Generate a Caption"):
@@ -116,8 +97,7 @@ try:
             col2 = render_pc(pc)
             prog.progress(0.5, "Running Generation")
             cap = openshape.pc_caption(model_b32, pc, cond_scale)
-            with col2:
-                st.text(cap)
+            st.text(cap)
             prog.progress(1.0, "Idle")
 except Exception as exc:
     st.error(repr(exc))
