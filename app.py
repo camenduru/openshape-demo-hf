@@ -76,28 +76,15 @@ def render_pc(pc):
 
 
 try:
-    tab_cls, tab_cap = st.tabs(["Classification", "Point Cloud Captioning"])
-
-    with tab_cls:
-        if st.button("Run Classification on LVIS Categories"):
-            pc = load_data()
-            col2 = render_pc(pc)
-            prog.progress(0.5, "Running Classification")
-            pred = openshape.pred_lvis_sims(model_g14, pc)
-            with col2:
-                for i, (cat, sim) in zip(range(5), pred.items()):
-                    st.text(cat)
-                    st.caption("Similarity %.4f" % sim)
-            prog.progress(1.0, "Idle")
-
-    with tab_cap:
-        cond_scale = st.slider('Conditioning Scale', 0.0, 4.0, 2.0)
-        if st.button("Generate a Caption"):
-            pc = load_data()
-            col2 = render_pc(pc)
-            prog.progress(0.5, "Running Generation")
-            cap = openshape.pc_caption(model_b32, pc, cond_scale)
-            st.text(cap)
-            prog.progress(1.0, "Idle")
+    if st.button("Run Classification on LVIS Categories"):
+        pc = load_data()
+        col2 = render_pc(pc)
+        prog.progress(0.5, "Running Classification")
+        pred = openshape.pred_lvis_sims(model_g14, pc)
+        with col2:
+            for i, (cat, sim) in zip(range(5), pred.items()):
+                st.text(cat)
+                st.caption("Similarity %.4f" % sim)
+        prog.progress(1.0, "Idle")
 except Exception as exc:
     st.error(repr(exc))
