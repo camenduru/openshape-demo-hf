@@ -48,6 +48,6 @@ def load_pc_encoder(name):
 
 
 # only import the functions in demo!
-from .sd_pc2img import pc_to_image
+# from .sd_pc2img import pc_to_image
 from .caption import pc_caption
 from .classification import pred_lvis_sims
