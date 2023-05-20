@@ -105,7 +105,7 @@ try:
             prog.progress(1.0, "Idle")
 
     with tab_cap:
-        cond_scale = st.slider('Conditioning Scale', 0.0, 4.0, 1.0)
+        cond_scale = st.slider('Conditioning Scale', 0.0, 4.0, 2.0)
         if st.button("Generate a Caption"):
             pc = load_data()
             render_pc(pc)
