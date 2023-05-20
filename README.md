@@ -1,5 +1,5 @@
 ---
-title: Openshape Demo
+title: OpenShape Classification Demo
 emoji: 🌖
 colorFrom: red
 colorTo: purple
