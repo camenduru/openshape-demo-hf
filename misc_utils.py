@@ -44,8 +44,12 @@ def model_to_pc(mesh: trimesh.Trimesh, n_sample_points=10000):
                 material = material.materials[0]
         if hasattr(material, 'image'):
             texture = material.image
+            if texture is None:
+                rgba = numpy.zeros([len(uv), len(material.main_color)]) + material.main_color
         elif hasattr(material, 'baseColorTexture'):
             texture = material.baseColorTexture
+            if texture is None:
+                rgba = numpy.zeros([len(uv), len(material.main_color)]) + material.main_color
         else:
             texture = None
             rgba = numpy.ones_like(pcd) * 0.8
