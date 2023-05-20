@@ -71,7 +71,7 @@ def render_pc(pc):
     col1, col2 = st.columns(2)
     with col1:
         st.plotly_chart(fig, use_container_width=True)
-        st.caption("Point Cloud Preview")
+        # st.caption("Point Cloud Preview")
     return col2
 
 
