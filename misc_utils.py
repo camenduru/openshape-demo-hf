@@ -34,7 +34,24 @@ def model_to_pc(mesh: trimesh.Trimesh, n_sample_points=10000):
     elif isinstance(mesh.visual, trimesh.visual.TextureVisuals):
         bc = trimesh.proximity.points_to_barycentric(mesh.triangles[face_idx], pcd)
         uv = numpy.einsum('ntc,nt->nc', mesh.visual.uv[mesh.faces[face_idx]], bc)
-        rgba = trimesh.visual.uv_to_interpolated_color(uv, mesh.visual.material.image)
+        material = mesh.visual.material
+        if hasattr(material, 'materials'):
+            if len(material.materials) == 0:
+                rgba = numpy.ones_like(pcd) * 0.8
+                texture = None
+                st.warning("Empty MultiMaterial found, falling back to light grey")
+            else:
+                material = material.materials[0]
+        if hasattr(material, 'image'):
+            texture = material.image
+        elif hasattr(material, 'baseColorTexture'):
+            texture = material.baseColorTexture
+        else:
+            texture = None
+            rgba = numpy.ones_like(pcd) * 0.8
+            st.warning("Unknown material, falling back to light grey")
+        if texture is not None:
+            rgba = trimesh.visual.uv_to_interpolated_color(uv, texture)
     if rgba.max() > 1:
         if rgba.max() > 255:
             rgba = rgba.astype(f32) / rgba.max()
@@ -45,11 +62,18 @@ def model_to_pc(mesh: trimesh.Trimesh, n_sample_points=10000):
 
 def trimesh_to_pc(scene_or_mesh):
     if isinstance(scene_or_mesh, trimesh.Scene):
-        meshes = [
-            model_to_pc(trimesh.Trimesh(vertices=g.vertices, faces=g.faces), 10000 // len(scene_or_mesh.geometry))
-            for g in scene_or_mesh.geometry.values()
-            if isinstance(g, trimesh.Trimesh)
-        ]
+        meshes = []
+        for node_name in scene_or_mesh.graph.nodes_geometry:
+            # which geometry does this node refer to
+            transform, geometry_name = scene_or_mesh.graph[node_name]
+
+            # get the actual potential mesh instance
+            geometry = scene_or_mesh.geometry[geometry_name].copy()
+            if not hasattr(geometry, 'triangles'):
+                continue
+            geometry: trimesh.Trimesh
+            geometry = geometry.apply_transform(transform)
+            meshes.append(model_to_pc(geometry, 10000 // len(scene_or_mesh.geometry)))
         if not len(meshes):
             return None
         return numpy.concatenate(meshes)

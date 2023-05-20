@@ -58,7 +58,8 @@ def load_data():
 
 
 def render_pc(pc):
-    pc = pc[:2048]
+    rand = numpy.random.permutation(len(pc))[:2048]
+    pc = pc[rand]
     rgb = (pc[:, 3:] * 255).astype(numpy.uint8)
     g = go.Scatter3d(
         x=pc[:, 0], y=pc[:, 1], z=pc[:, 2],
@@ -66,6 +67,7 @@ def render_pc(pc):
         marker=dict(size=2, color=[f'rgb({rgb[i, 0]}, {rgb[i, 1]}, {rgb[i, 2]})' for i in range(len(pc))]),
     )
     fig = go.Figure(data=[g])
+    fig.update_layout(scene_camera=dict(up=dict(x=0, y=1, z=0)))
     st.plotly_chart(fig)
     # st.caption("Point Cloud Preview")
 
@@ -87,10 +89,10 @@ try:
     with tab_pc2img:
         prompt = st.text_input("Prompt")
         noise_scale = st.slider('Variation Level', 0, 5)
-        cfg_scale = st.slider('Guidance Scale', 0.0, 30.0, 10.0)
-        steps = st.slider('Diffusion Steps', 2, 80, 10)
-        width = st.slider('Width', 128, 512, step=32)
-        height = st.slider('Height', 128, 512, step=32)
+        cfg_scale = st.slider('Guidance Scale', 0.0, 30.0, 3.0)
+        steps = st.slider('Diffusion Steps', 8, 80, 10)
+        width = st.slider('Width', 480, 640, step=32)
+        height = st.slider('Height', 480, 640, step=32)
         if st.button("Generate"):
             pc = load_data()
             render_pc(pc)
