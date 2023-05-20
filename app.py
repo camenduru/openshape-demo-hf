@@ -68,8 +68,11 @@ def render_pc(pc):
     )
     fig = go.Figure(data=[g])
     fig.update_layout(scene_camera=dict(up=dict(x=0, y=1, z=0)))
-    st.plotly_chart(fig)
-    # st.caption("Point Cloud Preview")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption("Point Cloud Preview")
+    return col2
 
 
 try:
@@ -78,12 +81,13 @@ try:
     with tab_cls:
         if st.button("Run Classification on LVIS Categories"):
             pc = load_data()
-            render_pc(pc)
+            col2 = render_pc(pc)
             prog.progress(0.5, "Running Classification")
             pred = openshape.pred_lvis_sims(model_g14, pc)
-            for i, (cat, sim) in zip(range(5), pred.items()):
-                st.text(cat)
-                st.caption("Similarity %.4f" % sim)
+            with col2:
+                for i, (cat, sim) in zip(range(5), pred.items()):
+                    st.text(cat)
+                    st.caption("Similarity %.4f" % sim)
             prog.progress(1.0, "Idle")
 
     with tab_pc2img:
@@ -95,23 +99,25 @@ try:
         height = st.slider('Height', 480, 640, step=32)
         if st.button("Generate"):
             pc = load_data()
-            render_pc(pc)
+            col2 = render_pc(pc)
             prog.progress(0.49, "Running Generation")
             img = openshape.pc_to_image(
                 model_l14, pc, prompt, noise_scale, width, height, cfg_scale, steps,
                 lambda i, t, _: prog.progress(0.49 + i / (steps + 1) / 2, "Running Diffusion Step %d" % i)
             )
-            st.image(img)
+            with col2:
+                st.image(img)
             prog.progress(1.0, "Idle")
 
     with tab_cap:
         cond_scale = st.slider('Conditioning Scale', 0.0, 4.0, 2.0)
         if st.button("Generate a Caption"):
             pc = load_data()
-            render_pc(pc)
+            col2 = render_pc(pc)
             prog.progress(0.5, "Running Generation")
             cap = openshape.pc_caption(model_b32, pc, cond_scale)
-            st.text(cap)
+            with col2:
+                st.text(cap)
             prog.progress(1.0, "Idle")
 except Exception as exc:
     st.error(repr(exc))
