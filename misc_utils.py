@@ -33,7 +33,11 @@ def model_to_pc(mesh: trimesh.Trimesh, n_sample_points=10000):
         rgba = mesh.visual.face_colors[face_idx]
     elif isinstance(mesh.visual, trimesh.visual.TextureVisuals):
         bc = trimesh.proximity.points_to_barycentric(mesh.triangles[face_idx], pcd)
-        uv = numpy.einsum('ntc,nt->nc', mesh.visual.uv[mesh.faces[face_idx]], bc)
+        if mesh.visual.uv is None or len(mesh.visual.uv) < mesh.faces[face_idx].max():
+            uv = numpy.zeros([len(bc), 2])
+            st.warning("Invalid UV, filling with zeroes")
+        else:
+            uv = numpy.einsum('ntc,nt->nc', mesh.visual.uv[mesh.faces[face_idx]], bc)
         material = mesh.visual.material
         if hasattr(material, 'materials'):
             if len(material.materials) == 0:
@@ -79,7 +83,7 @@ def trimesh_to_pc(scene_or_mesh):
             geometry = geometry.apply_transform(transform)
             meshes.append(model_to_pc(geometry, 10000 // len(scene_or_mesh.geometry)))
         if not len(meshes):
-            return None
+            raise ValueError("Unsupported mesh object: no triangles found")
         return numpy.concatenate(meshes)
     else:
         assert isinstance(scene_or_mesh, trimesh.Trimesh)
