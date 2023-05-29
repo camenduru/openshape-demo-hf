@@ -9,7 +9,7 @@ def load_support():
     sys.path.append(snapshot_download("OpenShape/openshape-demo-support"))
 
 
-# load_support()
+load_support()
 
 
 import numpy
