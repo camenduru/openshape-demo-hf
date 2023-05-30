@@ -69,11 +69,10 @@ def sq(kc, vc):
 
 
 def reset_3d_shape_input(key):
-    objaid_key = key + "_objaid"
+    # this is not working due to streamlit problems, don't use it
     model_key = key + "_model"
     npy_key = key + "_npy"
     swap_key = key + "_swap"
-    sq(objaid_key, "")
     sq(model_key, None)
     sq(npy_key, None)
     sq(swap_key, "Y is up (for most Objaverse shapes)")
@@ -121,43 +120,40 @@ def image_examples(samples, ncols, return_key=None):
     return trigger
 
 
-def text_examples(samples):
-    return st.selectbox("Or pick an example", samples)
-
-
 def demo_classification():
-    load_data = misc_utils.input_3d_shape('cls')
-    cats = st.text_input("Custom Categories (64 max, separated with comma)")
-    cats = [a.strip() for a in cats.split(',')]
-    if len(cats) > 64:
-        st.error('Maximum 64 custom categories supported in the demo')
-        return
-    lvis_run = st.button("Run Classification on LVIS Categories")
-    custom_run = st.button("Run Classification on Custom Categories")
-    if lvis_run or auto_submit("clsauto"):
-        pc = load_data(prog)
-        col2 = misc_utils.render_pc(pc)
-        prog.progress(0.5, "Running Classification")
-        pred = classification.pred_lvis_sims(model_g14, pc)
-        with col2:
-            for i, (cat, sim) in zip(range(5), pred.items()):
-                st.text(cat)
-                st.caption("Similarity %.4f" % sim)
-        prog.progress(1.0, "Idle")
-    if custom_run:
-        pc = load_data(prog)
-        col2 = misc_utils.render_pc(pc)
-        prog.progress(0.5, "Computing Category Embeddings")
-        device = clip_model.device
-        tn = clip_prep(text=cats, return_tensors='pt', truncation=True, max_length=76).to(device)
-        feats = clip_model.get_text_features(**tn).float().cpu()
-        prog.progress(0.5, "Running Classification")
-        pred = classification.pred_custom_sims(model_g14, pc, cats, feats)
-        with col2:
-            for i, (cat, sim) in zip(range(5), pred.items()):
-                st.text(cat)
-                st.caption("Similarity %.4f" % sim)
-        prog.progress(1.0, "Idle")
+    with st.form("clsform"):
+        load_data = misc_utils.input_3d_shape('cls')
+        cats = st.text_input("Custom Categories (64 max, separated with comma)")
+        cats = [a.strip() for a in cats.split(',')]
+        if len(cats) > 64:
+            st.error('Maximum 64 custom categories supported in the demo')
+            return
+        lvis_run = st.form_submit_button("Run Classification on LVIS Categories")
+        custom_run = st.form_submit_button("Run Classification on Custom Categories")
+        if lvis_run or auto_submit("clsauto"):
+            pc = load_data(prog)
+            col2 = misc_utils.render_pc(pc)
+            prog.progress(0.5, "Running Classification")
+            pred = classification.pred_lvis_sims(model_g14, pc)
+            with col2:
+                for i, (cat, sim) in zip(range(5), pred.items()):
+                    st.text(cat)
+                    st.caption("Similarity %.4f" % sim)
+            prog.progress(1.0, "Idle")
+        if custom_run:
+            pc = load_data(prog)
+            col2 = misc_utils.render_pc(pc)
+            prog.progress(0.5, "Computing Category Embeddings")
+            device = clip_model.device
+            tn = clip_prep(text=cats, return_tensors='pt', truncation=True, max_length=76).to(device)
+            feats = clip_model.get_text_features(**tn).float().cpu()
+            prog.progress(0.5, "Running Classification")
+            pred = classification.pred_custom_sims(model_g14, pc, cats, feats)
+            with col2:
+                for i, (cat, sim) in zip(range(5), pred.items()):
+                    st.text(cat)
+                    st.caption("Similarity %.4f" % sim)
+            prog.progress(1.0, "Idle")
     if image_examples(samples_index.classification, 3):
         queue_auto_submit("clsauto")
 
@@ -226,18 +222,25 @@ def demo_retrieval():
     with tab_text:
         with st.form("rtextform"):
             k = st.slider("Shapes to Retrieve", 1, 100, 16, key='rtext')
-            text = st.text_input("Input Text")
-            picked_sample = text_examples(samples_index.retrieval_texts)
-            if st.form_submit_button("Run with Text"):
+            text = st.text_input("Input Text", key="inputrtext")
+            if st.form_submit_button("Run with Text") or auto_submit("rtextauto"):
                 prog.progress(0.49, "Computing Embeddings")
                 device = clip_model.device
                 tn = clip_prep(
-                    text=[text or picked_sample], return_tensors='pt', truncation=True, max_length=76
+                    text=[text], return_tensors='pt', truncation=True, max_length=76
                 ).to(device)
                 enc = clip_model.get_text_features(**tn).float().cpu()
                 prog.progress(0.7, "Running Retrieval")
                 retrieval_results(retrieval.retrieve(enc, k))
                 prog.progress(1.0, "Idle")
+        picked_sample = st.selectbox("Examples", ["Select..."] + samples_index.retrieval_texts)
+        text_last_example = st.session_state.get('text_last_example', None)
+        if text_last_example is None:
+            st.session_state.text_last_example = picked_sample
+        elif text_last_example != picked_sample and picked_sample != "Select...":
+            st.session_state.text_last_example = picked_sample
+            sq("inputrtext", picked_sample)
+            queue_auto_submit("rtextauto")
 
     with tab_img:
         submit = False
@@ -246,19 +249,21 @@ def demo_retrieval():
             pic = st.file_uploader("Upload an Image", key='rimageinput')
             if st.form_submit_button("Run with Image"):
                 submit = True
+            results_container = st.container()
         sample_got = image_examples(samples_index.iret, 4, 'rimageinput')
         if sample_got:
             pic = sample_got
         if sample_got or submit:
             img = Image.open(pic)
-            st.image(img)
-            prog.progress(0.49, "Computing Embeddings")
-            device = clip_model.device
-            tn = clip_prep(images=[img], return_tensors="pt").to(device)
-            enc = clip_model.get_image_features(pixel_values=tn['pixel_values'].type(half)).float().cpu()
-            prog.progress(0.7, "Running Retrieval")
-            retrieval_results(retrieval.retrieve(enc, k))
-            prog.progress(1.0, "Idle")
+            with results_container:
+                st.image(img)
+                prog.progress(0.49, "Computing Embeddings")
+                device = clip_model.device
+                tn = clip_prep(images=[img], return_tensors="pt").to(device)
+                enc = clip_model.get_image_features(pixel_values=tn['pixel_values'].type(half)).float().cpu()
+                prog.progress(0.7, "Running Retrieval")
+                retrieval_results(retrieval.retrieve(enc, k))
+                prog.progress(1.0, "Idle")
 
     with tab_pc:
         with st.form("rpcform"):
