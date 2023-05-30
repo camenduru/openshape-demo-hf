@@ -1,4 +1,5 @@
 import sys
+import threading
 import streamlit as st
 from huggingface_hub import HfFolder, snapshot_download
 
@@ -21,12 +22,16 @@ import transformers
 from PIL import Image
 
 @st.cache_resource
-def load_openshape(name):
-    return openshape.load_pc_encoder(name)
+def load_openshape(name, to_cpu=False):
+    pce = openshape.load_pc_encoder(name)
+    if to_cpu:
+        pce = pce.cpu()
+    return pce
 
 
 @st.cache_resource
 def load_openclip():
+    sys.clip_move_lock = threading.Lock()
     return transformers.CLIPModel.from_pretrained(
         "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k",
         low_cpu_mem_usage=True, torch_dtype=half,
@@ -38,7 +43,7 @@ f32 = numpy.float32
 half = torch.float16 if torch.cuda.is_available() else torch.bfloat16
 # clip_model, clip_prep = None, None
 clip_model, clip_prep = load_openclip()
-model_b32 = load_openshape('openshape-pointbert-vitb32-rgb').cpu()
+model_b32 = load_openshape('openshape-pointbert-vitb32-rgb', True)
 model_l14 = load_openshape('openshape-pointbert-vitl14-rgb')
 model_g14 = load_openshape('openshape-pointbert-vitg14-rgb')
 torch.set_grad_enabled(False)
@@ -187,17 +192,19 @@ def demo_pc2img():
             col2 = misc_utils.render_pc(pc)
             prog.progress(0.49, "Running Generation")
             if torch.cuda.is_available():
-                clip_model.cpu()
+                with sys.clip_move_lock:
+                    clip_model.cpu()
             img = sd_pc2img.pc_to_image(
                 model_l14, pc, prompt, noise_scale, width, height, cfg_scale, steps,
                 lambda i, t, _: prog.progress(0.49 + i / (steps + 1) / 2, "Running Diffusion Step %d" % i)
             )
             if torch.cuda.is_available():
-                clip_model.cuda()
+                with sys.clip_move_lock:
+                    clip_model.cuda()
             with col2:
                 st.image(img)
             prog.progress(1.0, "Idle")
-    if image_examples(samples_index.sd, 3):
+    if image_examples(samples_index.sd, 3, example_text="Examples (Choose one of the following 3D shapes)"):
         queue_auto_submit("sdauto")
 
 
@@ -285,7 +292,8 @@ def demo_retrieval():
 
 try:
     if torch.cuda.is_available():
-        clip_model.cuda()
+        with sys.clip_move_lock:
+            clip_model.cuda()
     with tab_cls:
         demo_classification()
     with tab_cap:
