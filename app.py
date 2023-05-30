@@ -93,10 +93,10 @@ def queue_auto_submit(key):
 img_example_counter = 0
 
 
-def image_examples(samples, ncols, return_key=None):
+def image_examples(samples, ncols, return_key=None, example_text="Examples"):
     global img_example_counter
     trigger = False
-    with st.expander("Examples", True):
+    with st.expander(example_text, True):
         for i in range(len(samples) // ncols):
             cols = st.columns(ncols)
             for j in range(ncols):
@@ -154,7 +154,7 @@ def demo_classification():
                     st.text(cat)
                     st.caption("Similarity %.4f" % sim)
             prog.progress(1.0, "Idle")
-    if image_examples(samples_index.classification, 3):
+    if image_examples(samples_index.classification, 3, example_text="Examples (Choose one of the following 3D shapes)"):
         queue_auto_submit("clsauto")
 
 
@@ -169,7 +169,7 @@ def demo_captioning():
             cap = caption.pc_caption(model_b32, pc, cond_scale)
             st.text(cap)
             prog.progress(1.0, "Idle")
-    if image_examples(samples_index.cap, 3):
+    if image_examples(samples_index.cap, 3, example_text="Examples (Choose one of the following 3D shapes)"):
         queue_auto_submit("capauto")
 
 
@@ -202,6 +202,7 @@ def demo_pc2img():
 
 
 def retrieval_results(results):
+    st.caption("Click the link to view the 3D shape")
     for i in range(len(results) // 4):
         cols = st.columns(4)
         for j in range(4):
