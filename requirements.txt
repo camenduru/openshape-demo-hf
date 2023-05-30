@@ -1,6 +1,7 @@
+--extra-index-url https://download.pytorch.org/whl/cu113
 torch
 numpy
-dgl
+dgl-cu113
 # open_clip_torch
 diffusers
 accelerate
