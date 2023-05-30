@@ -5,10 +5,12 @@ from huggingface_hub import HfFolder, snapshot_download
 
 @st.cache_data
 def load_support():
-    HfFolder().save_token(st.secrets['etoken'])
+    if st.secrets.has_key('etoken'):
+        HfFolder().save_token(st.secrets['etoken'])
     sys.path.append(snapshot_download("OpenShape/openshape-demo-support"))
 
 
+# st.set_page_config(layout='wide')
 load_support()
 
 
@@ -43,13 +45,15 @@ torch.set_grad_enabled(False)
 
 from openshape.demo import misc_utils, classification, caption, sd_pc2img, retrieval
 
+
 st.title("OpenShape Demo")
+st.caption("For faster inference without waiting in queue, you may clone the space and run it yourself.")
 prog = st.progress(0.0, "Idle")
-tab_cls, tab_text, tab_img, tab_pc, tab_sd, tab_cap = st.tabs([
+tab_cls, tab_img, tab_text, tab_pc, tab_sd, tab_cap = st.tabs([
     "Classification",
-    "Retrieval from Text",
-    "Retrieval from Image",
-    "Retrieval from 3D Shape",
+    "Retrieval w/ Image",
+    "Retrieval w/ Text",
+    "Retrieval w/ 3D",
     "Image Generation",
     "Captioning",
 ])
@@ -62,7 +66,9 @@ def demo_classification():
     if len(cats) > 64:
         st.error('Maximum 64 custom categories supported in the demo')
         return
-    if st.button("Run Classification on LVIS Categories"):
+    lvis_run = st.button("Run Classification on LVIS Categories")
+    custom_run = st.button("Run Classification on Custom Categories")
+    if lvis_run:
         pc = load_data(prog)
         col2 = misc_utils.render_pc(pc)
         prog.progress(0.5, "Running Classification")
@@ -72,7 +78,7 @@ def demo_classification():
                 st.text(cat)
                 st.caption("Similarity %.4f" % sim)
         prog.progress(1.0, "Idle")
-    if st.button("Run Classification on Custom Categories"):
+    if custom_run:
         pc = load_data(prog)
         col2 = misc_utils.render_pc(pc)
         prog.progress(0.5, "Computing Category Embeddings")
@@ -89,40 +95,42 @@ def demo_classification():
 
 
 def demo_captioning():
-    load_data = misc_utils.input_3d_shape('cap')
-    cond_scale = st.slider('Conditioning Scale', 0.0, 4.0, 2.0)
-    if st.button("Generate a Caption"):
-        pc = load_data(prog)
-        col2 = misc_utils.render_pc(pc)
-        prog.progress(0.5, "Running Generation")
-        cap = caption.pc_caption(model_b32, pc, cond_scale)
-        st.text(cap)
-        prog.progress(1.0, "Idle")
+    with st.form("capform"):
+        load_data = misc_utils.input_3d_shape('cap')
+        cond_scale = st.slider('Conditioning Scale', 0.0, 4.0, 2.0)
+        if st.form_submit_button("Generate a Caption"):
+            pc = load_data(prog)
+            col2 = misc_utils.render_pc(pc)
+            prog.progress(0.5, "Running Generation")
+            cap = caption.pc_caption(model_b32, pc, cond_scale)
+            st.text(cap)
+            prog.progress(1.0, "Idle")
 
 
 def demo_pc2img():
-    load_data = misc_utils.input_3d_shape('sd')
-    prompt = st.text_input("Prompt (Optional)")
-    noise_scale = st.slider('Variation Level', 0, 5, 1)
-    cfg_scale = st.slider('Guidance Scale', 0.0, 30.0, 10.0)
-    steps = st.slider('Diffusion Steps', 8, 50, 25)
-    width = 640  # st.slider('Width', 480, 640, step=32)
-    height = 640  # st.slider('Height', 480, 640, step=32)
-    if st.button("Generate"):
-        pc = load_data(prog)
-        col2 = misc_utils.render_pc(pc)
-        prog.progress(0.49, "Running Generation")
-        if torch.cuda.is_available():
-            clip_model.cpu()
-        img = sd_pc2img.pc_to_image(
-            model_l14, pc, prompt, noise_scale, width, height, cfg_scale, steps,
-            lambda i, t, _: prog.progress(0.49 + i / (steps + 1) / 2, "Running Diffusion Step %d" % i)
-        )
-        if torch.cuda.is_available():
-            clip_model.cuda()
-        with col2:
-            st.image(img)
-        prog.progress(1.0, "Idle")
+    with st.form("sdform"):
+        load_data = misc_utils.input_3d_shape('sd')
+        prompt = st.text_input("Prompt (Optional)")
+        noise_scale = st.slider('Variation Level', 0, 5, 1)
+        cfg_scale = st.slider('Guidance Scale', 0.0, 30.0, 10.0)
+        steps = st.slider('Diffusion Steps', 8, 50, 25)
+        width = 640  # st.slider('Width', 480, 640, step=32)
+        height = 640  # st.slider('Height', 480, 640, step=32)
+        if st.form_submit_button("Generate"):
+            pc = load_data(prog)
+            col2 = misc_utils.render_pc(pc)
+            prog.progress(0.49, "Running Generation")
+            if torch.cuda.is_available():
+                clip_model.cpu()
+            img = sd_pc2img.pc_to_image(
+                model_l14, pc, prompt, noise_scale, width, height, cfg_scale, steps,
+                lambda i, t, _: prog.progress(0.49 + i / (steps + 1) / 2, "Running Diffusion Step %d" % i)
+            )
+            if torch.cuda.is_available():
+                clip_model.cuda()
+            with col2:
+                st.image(img)
+            prog.progress(1.0, "Idle")
 
 
 def retrieval_results(results):
@@ -144,43 +152,46 @@ def retrieval_results(results):
 
 def demo_retrieval():
     with tab_text:
-        k = st.slider("# Shapes to Retrieve", 1, 100, 16, key='rtext')
-        text = st.text_input("Input Text")
-        if st.button("Run with Text"):
-            prog.progress(0.49, "Computing Embeddings")
-            device = clip_model.device
-            tn = clip_prep(text=[text], return_tensors='pt', truncation=True, max_length=76).to(device)
-            enc = clip_model.get_text_features(**tn).float().cpu()
-            prog.progress(0.7, "Running Retrieval")
-            retrieval_results(retrieval.retrieve(enc, k))
-            prog.progress(1.0, "Idle")
+        with st.form("rtextform"):
+            k = st.slider("# Shapes to Retrieve", 1, 100, 16, key='rtext')
+            text = st.text_input("Input Text")
+            if st.form_submit_button("Run with Text"):
+                prog.progress(0.49, "Computing Embeddings")
+                device = clip_model.device
+                tn = clip_prep(text=[text], return_tensors='pt', truncation=True, max_length=76).to(device)
+                enc = clip_model.get_text_features(**tn).float().cpu()
+                prog.progress(0.7, "Running Retrieval")
+                retrieval_results(retrieval.retrieve(enc, k))
+                prog.progress(1.0, "Idle")
 
     with tab_img:
-        k = st.slider("# Shapes to Retrieve", 1, 100, 16, key='rimage')
-        pic = st.file_uploader("Upload an Image")
-        if st.button("Run with Image"):
-            img = Image.open(pic)
-            st.image(img)
-            prog.progress(0.49, "Computing Embeddings")
-            device = clip_model.device
-            tn = clip_prep(images=[img], return_tensors="pt").to(device)
-            enc = clip_model.get_image_features(pixel_values=tn['pixel_values'].type(half)).float().cpu()
-            prog.progress(0.7, "Running Retrieval")
-            retrieval_results(retrieval.retrieve(enc, k))
-            prog.progress(1.0, "Idle")
+        with st.form("rimgform"):
+            k = st.slider("# Shapes to Retrieve", 1, 100, 16, key='rimage')
+            pic = st.file_uploader("Upload an Image")
+            if st.form_submit_button("Run with Image"):
+                img = Image.open(pic)
+                st.image(img)
+                prog.progress(0.49, "Computing Embeddings")
+                device = clip_model.device
+                tn = clip_prep(images=[img], return_tensors="pt").to(device)
+                enc = clip_model.get_image_features(pixel_values=tn['pixel_values'].type(half)).float().cpu()
+                prog.progress(0.7, "Running Retrieval")
+                retrieval_results(retrieval.retrieve(enc, k))
+                prog.progress(1.0, "Idle")
 
     with tab_pc:
-        k = st.slider("# Shapes to Retrieve", 1, 100, 16, key='rpc')
-        load_data = misc_utils.input_3d_shape('retpc')
-        if st.button("Run with Shape"):
-            pc = load_data(prog)
-            col2 = misc_utils.render_pc(pc)
-            prog.progress(0.49, "Computing Embeddings")
-            ref_dev = next(model_g14.parameters()).device
-            enc = model_g14(torch.tensor(pc[:, [0, 2, 1, 3, 4, 5]].T[None], device=ref_dev)).cpu()
-            prog.progress(0.7, "Running Retrieval")
-            retrieval_results(retrieval.retrieve(enc, k))
-            prog.progress(1.0, "Idle")
+        with st.form("rpcform"):
+            k = st.slider("# Shapes to Retrieve", 1, 100, 16, key='rpc')
+            load_data = misc_utils.input_3d_shape('retpc')
+            if st.form_submit_button("Run with Shape"):
+                pc = load_data(prog)
+                col2 = misc_utils.render_pc(pc)
+                prog.progress(0.49, "Computing Embeddings")
+                ref_dev = next(model_g14.parameters()).device
+                enc = model_g14(torch.tensor(pc[:, [0, 2, 1, 3, 4, 5]].T[None], device=ref_dev)).cpu()
+                prog.progress(0.7, "Running Retrieval")
+                retrieval_results(retrieval.retrieve(enc, k))
+                prog.progress(1.0, "Idle")
 
 
 try:
