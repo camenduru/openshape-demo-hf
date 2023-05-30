@@ -32,11 +32,15 @@ def load_openshape(name, to_cpu=False):
 @st.cache_resource
 def load_openclip():
     sys.clip_move_lock = threading.Lock()
-    return transformers.CLIPModel.from_pretrained(
+    clip_model, clip_prep = transformers.CLIPModel.from_pretrained(
         "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k",
         low_cpu_mem_usage=True, torch_dtype=half,
         offload_state_dict=True
     ), transformers.CLIPProcessor.from_pretrained("laion/CLIP-ViT-bigG-14-laion2B-39B-b160k")
+    if torch.cuda.is_available():
+        with sys.clip_move_lock:
+            clip_model.cuda()
+    return clip_model, clip_prep
 
 
 f32 = numpy.float32
@@ -291,9 +295,6 @@ def demo_retrieval():
 
 
 try:
-    if torch.cuda.is_available():
-        with sys.clip_move_lock:
-            clip_model.cuda()
     with tab_cls:
         demo_classification()
     with tab_cap:
