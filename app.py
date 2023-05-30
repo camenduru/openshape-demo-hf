@@ -225,7 +225,7 @@ def retrieval_results(results):
 def demo_retrieval():
     with tab_text:
         with st.form("rtextform"):
-            k = st.slider("# Shapes to Retrieve", 1, 100, 16, key='rtext')
+            k = st.slider("Shapes to Retrieve", 1, 100, 16, key='rtext')
             text = st.text_input("Input Text")
             picked_sample = text_examples(samples_index.retrieval_texts)
             if st.form_submit_button("Run with Text"):
@@ -242,7 +242,7 @@ def demo_retrieval():
     with tab_img:
         submit = False
         with st.form("rimgform"):
-            k = st.slider("# Shapes to Retrieve", 1, 100, 16, key='rimage')
+            k = st.slider("Shapes to Retrieve", 1, 100, 16, key='rimage')
             pic = st.file_uploader("Upload an Image", key='rimageinput')
             if st.form_submit_button("Run with Image"):
                 submit = True
@@ -262,7 +262,7 @@ def demo_retrieval():
 
     with tab_pc:
         with st.form("rpcform"):
-            k = st.slider("# Shapes to Retrieve", 1, 100, 16, key='rpc')
+            k = st.slider("Shapes to Retrieve", 1, 100, 16, key='rpc')
             load_data = misc_utils.input_3d_shape('retpc')
             if st.form_submit_button("Run with Shape") or auto_submit('rpcauto'):
                 pc = load_data(prog)
