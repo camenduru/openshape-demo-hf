@@ -11,3 +11,7 @@ license: mit
 ---
 
 Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+
+Demo of Paper [OpenShape: Scaling Up 3D Shape Representation Towards Open-World Understanding](https://arxiv.org/abs/2305.10764)
+
+[Paper page on HF](https://huggingface.co/papers/2305.10764)
