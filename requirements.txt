@@ -7,7 +7,7 @@ numpy
 diffusers
 accelerate
 datasets
-transformers==4.30.1
+transformers==4.29.2
 einops
 torch.redstone
 objaverse
