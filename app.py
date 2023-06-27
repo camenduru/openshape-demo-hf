@@ -154,7 +154,7 @@ def demo_classification():
             col2 = misc_utils.render_pc(pc)
             prog.progress(0.5, "Computing Category Embeddings")
             device = clip_model.device
-            tn = clip_prep(text=cats, return_tensors='pt', truncation=True, max_length=76).to(device)
+            tn = clip_prep(text=cats, return_tensors='pt', truncation=True, max_length=76, padding=True).to(device)
             feats = clip_model.get_text_features(**tn).float().cpu()
             prog.progress(0.5, "Running Classification")
             pred = classification.pred_custom_sims(model_g14, pc, cats, feats)
