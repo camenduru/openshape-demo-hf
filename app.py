@@ -230,11 +230,33 @@ def retrieval_results(results):
                 st.markdown(f"[{quote_name}]({ext_link})")
 
 
+def retrieval_filter_expand(key):
+    with st.expander("Filters"):
+        sim_th = st.slider("Similarity Threshold", 0.05, 0.5, 0.1, key=key + 'rtsimth')
+        tag = st.text_input("Has Tag", "", key=key + 'rthastag')
+        col1, col2 = st.columns(2)
+        face_min = int(col1.text_input("Face Count Min", "0", key=key + 'rtfcmin'))
+        face_max = int(col2.text_input("Face Count Max", "34985808", key=key + 'rtfcmax'))
+        col1, col2 = st.columns(2)
+        anim_min = int(col1.text_input("Animation Count Min", "0", key=key + 'rtacmin'))
+        anim_max = int(col2.text_input("Animation Count Max", "563", key=key + 'rtacmax'))
+        tag_n = not bool(tag.strip())
+        anim_n = not (anim_min > 0 or anim_max < 563)
+        face_n = not (face_min > 0 or face_max < 34985808)
+        filter_fn = lambda x: (
+            (anim_n or anim_min <= x['anims'] <= anim_max)
+            and (face_n or face_min <= x['faces'] <= face_max)
+            and (tag_n or tag in x['tags'])
+        )
+        return sim_th, filter_fn
+
+
 def demo_retrieval():
     with tab_text:
         with st.form("rtextform"):
             k = st.slider("Shapes to Retrieve", 1, 100, 16, key='rtext')
             text = st.text_input("Input Text", key="inputrtext")
+            sim_th, filter_fn = retrieval_filter_expand('text')
             if st.form_submit_button("Run with Text") or auto_submit("rtextauto"):
                 prog.progress(0.49, "Computing Embeddings")
                 device = clip_model.device
@@ -243,7 +265,7 @@ def demo_retrieval():
                 ).to(device)
                 enc = clip_model.get_text_features(**tn).float().cpu()
                 prog.progress(0.7, "Running Retrieval")
-                retrieval_results(retrieval.retrieve(enc, k))
+                retrieval_results(retrieval.retrieve(enc, k, sim_th, filter_fn))
                 prog.progress(1.0, "Idle")
         picked_sample = st.selectbox("Examples", ["Select..."] + samples_index.retrieval_texts)
         text_last_example = st.session_state.get('text_last_example', None)
@@ -259,6 +281,7 @@ def demo_retrieval():
         with st.form("rimgform"):
             k = st.slider("Shapes to Retrieve", 1, 100, 16, key='rimage')
             pic = st.file_uploader("Upload an Image", key='rimageinput')
+            sim_th, filter_fn = retrieval_filter_expand('image')
             if st.form_submit_button("Run with Image"):
                 submit = True
             results_container = st.container()
@@ -274,13 +297,14 @@ def demo_retrieval():
                 tn = clip_prep(images=[img], return_tensors="pt").to(device)
                 enc = clip_model.get_image_features(pixel_values=tn['pixel_values'].type(half)).float().cpu()
                 prog.progress(0.7, "Running Retrieval")
-                retrieval_results(retrieval.retrieve(enc, k))
+                retrieval_results(retrieval.retrieve(enc, k, sim_th, filter_fn))
                 prog.progress(1.0, "Idle")
 
     with tab_pc:
         with st.form("rpcform"):
             k = st.slider("Shapes to Retrieve", 1, 100, 16, key='rpc')
             load_data = misc_utils.input_3d_shape('retpc')
+            sim_th, filter_fn = retrieval_filter_expand('pc')
             if st.form_submit_button("Run with Shape") or auto_submit('rpcauto'):
                 pc = load_data(prog)
                 col2 = misc_utils.render_pc(pc)
@@ -288,7 +312,7 @@ def demo_retrieval():
                 ref_dev = next(model_g14.parameters()).device
                 enc = model_g14(torch.tensor(pc[:, [0, 2, 1, 3, 4, 5]].T[None], device=ref_dev)).cpu()
                 prog.progress(0.7, "Running Retrieval")
-                retrieval_results(retrieval.retrieve(enc, k))
+                retrieval_results(retrieval.retrieve(enc, k, sim_th, filter_fn))
                 prog.progress(1.0, "Idle")
         if image_examples(samples_index.pret, 3):
             queue_auto_submit("rpcauto")
